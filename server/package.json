@@ -13,7 +13,8 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "auth:create-user": "tsx --env-file=.env src/scripts/create-user.ts"
+    "auth:create-user": "tsx --env-file=.env src/scripts/create-user.ts",
+    "db:seed": "tsx --env-file=.env src/scripts/seed.ts"
   },
   "prisma": {
     "schema": "prisma/schema.prisma"

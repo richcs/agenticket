@@ -22,8 +22,17 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
+  // Hand-maintained: `better-auth generate` emits `role String?`. Keep this
+  // enum (and re-apply it after running the CLI) — see auth.ts additionalFields.
+  role Role @default(agent)
+
   @@unique([email])
   @@map("user")
+}
+
+enum Role {
+  admin
+  agent
 }
 
 model Session {

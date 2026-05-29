@@ -15,6 +15,18 @@ export const auth = betterAuth({
     // No public registration — users are created via the create-user script.
     disableSignUp: true,
   },
+  user: {
+    additionalFields: {
+      // Application role: 'admin' or 'agent'. Assigned server-side
+      // (seed script / admin tooling), never via the auth API.
+      role: {
+        type: 'string',
+        required: false,
+        defaultValue: 'agent',
+        input: false,
+      },
+    },
+  },
   // CSRF / origin allow-list for the Vite dev client.
   trustedOrigins: [CLIENT_ORIGIN],
 });
