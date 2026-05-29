@@ -1,0 +1,16 @@
+{
+  "name": "agenticket",
+  "version": "0.0.0",
+  "private": true,
+  "description": "AI-powered ticket management system",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev:client": "npm run dev --workspace client",
+    "dev:server": "npm run dev --workspace server",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  }
+}
