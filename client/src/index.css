@@ -1,18 +1,22 @@
-:root {
-  color-scheme: light dark;
-}
+@import "tailwindcss";
 
-* {
-  box-sizing: border-box;
-}
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
 
-body {
-  margin: 0;
-}
+  * {
+    box-sizing: border-box;
+  }
 
-pre {
-  background: rgba(127, 127, 127, 0.1);
-  padding: 0.75rem;
-  border-radius: 6px;
-  overflow-x: auto;
+  body {
+    margin: 0;
+  }
+
+  pre {
+    background: rgba(127, 127, 127, 0.1);
+    padding: 0.75rem;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
 }
