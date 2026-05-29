@@ -12,13 +12,15 @@
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "auth:create-user": "tsx --env-file=.env src/scripts/create-user.ts"
   },
   "prisma": {
     "schema": "prisma/schema.prisma"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",
+    "better-auth": "^1.6.11",
     "cors": "^2.8.5",
     "express": "^5.1.0"
   },

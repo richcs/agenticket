@@ -1,6 +1,8 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
+import { toNodeHandler } from 'better-auth/node';
 import { prisma } from './db.js';
+import { auth } from './auth.js';
 
 const PORT = Number(process.env.PORT ?? 3001);
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN ?? 'http://localhost:5173';
@@ -8,6 +10,11 @@ const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN ?? 'http://localhost:5173';
 const app = express();
 
 app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
+
+// Better Auth handler — mounted before express.json() so it can read the raw
+// request body. Express 5 requires a named wildcard (*splat), not a bare *.
+app.all('/api/auth/*splat', toNodeHandler(auth));
+
 app.use(express.json());
 
 app.get('/api/health', (_req: Request, res: Response) => {
