@@ -11,7 +11,7 @@ For full context see:
 
 - **Frontend**: React 18 + TypeScript + Vite + React Router + Tailwind CSS (Tailwind not wired up yet)
 - **Backend**: Node.js + Express 5 + TypeScript (ESM, run via `tsx`)
-- **Database**: PostgreSQL (not wired up yet)
+- **Database**: PostgreSQL via **Prisma ORM**. Schema lives at `server/prisma/schema.prisma`; the `PrismaClient` singleton is exported from `server/src/db.ts` — never instantiate `new PrismaClient()` elsewhere. Local dev runs Postgres via `docker-compose.yml` at the repo root (database name: `helpdesk`).
 - **Auth**: database sessions (not wired up yet)
 - **AI**: pluggable provider interface (`AIProvider`) — not wired up yet. MVP implementation will be Claude (Anthropic). Code outside `/server/src/ai/` must depend only on the interface, never the vendor SDK.
 - **Email**: inbound webhook (SendGrid / Postmark / Mailgun) — not wired up yet
@@ -31,10 +31,13 @@ agenticket/
 Run from the repo root:
 
 ```sh
-npm install         # install all workspace deps
-npm run dev:server  # backend on :3001
-npm run dev:client  # frontend on :5173
-npm run build       # build both workspaces
+docker compose up -d                # start the helpdesk Postgres (one-time per session)
+npm install                         # install all workspace deps; runs prisma generate
+npm run dev:server                  # backend on :3001
+npm run dev:client                  # frontend on :5173
+npm run build                       # build both workspaces
+npm run -w server db:migrate        # create / apply migrations against the helpdesk DB
+npm run -w server db:studio         # open Prisma Studio against the helpdesk DB
 ```
 
 The Vite dev server proxies `/api/*` to the backend, so the frontend calls relative URLs (`fetch('/api/...')`) in both dev and prod.
@@ -62,8 +65,9 @@ Skip context7 for: refactoring existing code, debugging business logic, code rev
 
 **Done (Phase 1 of `implementation-plan.md`):**
 - Monorepo scaffolded with npm workspaces
-- Express + TS backend with `/api/health`
+- Express + TS backend with `/api/health` and `/api/db-health`
 - Vite + React + TS frontend with health-check display
 - CORS + proxy wired and verified end-to-end
+- Prisma + Postgres set up (schema, client singleton, Docker Compose for local `helpdesk` DB)
 
-**Next:** Phase 2 — core ticket management (schema, CRUD endpoints, ticket list/detail UI). See `implementation-plan.md`. Phases 6 (auth) and 7 (email ingestion) are intentionally deferred so AI features land sooner.
+**Next:** Phase 2 — core ticket management (schema models for tickets/messages, CRUD endpoints, ticket list/detail UI). See `implementation-plan.md`. Phases 6 (auth) and 7 (email ingestion) are intentionally deferred so AI features land sooner.

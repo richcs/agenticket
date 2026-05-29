@@ -11,8 +11,9 @@ Goal: Empty but runnable frontend, backend, and database talking to each other.
 - [ ] Create monorepo structure (`/client`, `/server`, `/shared`) with root `package.json` and workspaces
 - [ ] Initialise backend: Express + TypeScript + `tsx` watch mode, basic `/api/health` endpoint
 - [ ] Initialise frontend: Vite + React + TypeScript + Tailwind CSS + React Router
-- [ ] Set up PostgreSQL locally (Docker Compose) and connect with a query library (`pg` or Knex)
-- [ ] Add a migrations tool (e.g. `node-pg-migrate` or Knex migrations) and write a smoke-test migration
+- [x] Set up PostgreSQL locally via Docker Compose (`helpdesk` database)
+- [x] Set up Prisma ORM (`server/prisma/schema.prisma`, `PrismaClient` singleton in `server/src/db.ts`, `prisma generate` on postinstall, `/api/db-health` endpoint)
+- [ ] Add first migration once Phase 2 models are defined (`npm run -w server db:migrate`)
 - [ ] Configure environment variables (`.env`, `.env.example`) and a config loader on the backend
 - [ ] Add ESLint + Prettier shared config across client and server
 - [ ] Wire frontend → backend with a sample fetch from `/api/health` to prove CORS and proxy work
@@ -24,7 +25,8 @@ Goal: Empty but runnable frontend, backend, and database talking to each other.
 
 Goal: Agents can manage tickets manually end-to-end through the UI.
 
-- [ ] Schema: `tickets` (id, subject, status, category, customer_email, customer_name, assignee_id, created_at, updated_at), `messages` (id, ticket_id, direction, body, author_id, created_at)
+- [ ] Prisma models in `server/prisma/schema.prisma`: `Ticket` (id, subject, status, category, customerEmail, customerName, assigneeId, createdAt, updatedAt), `Message` (id, ticketId, direction, body, authorId, createdAt)
+- [ ] Run first migration: `npm run -w server db:migrate`
 - [ ] Backend endpoints: `GET /tickets` (with filter/sort query params), `GET /tickets/:id`, `POST /tickets`, `PATCH /tickets/:id` (status, category, assignee), `POST /tickets/:id/messages`
 - [ ] Frontend: ticket list page with filters (status, category, assignee) and sort
 - [ ] Frontend: ticket detail page showing thread + reply composer
