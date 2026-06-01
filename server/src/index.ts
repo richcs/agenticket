@@ -36,7 +36,13 @@ app.use((_req: Request, res: Response) => {
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err);
-  res.status(500).json({ error: 'Internal server error', message: err.message });
+  // Don't leak internal error details (e.g. Prisma schema/constraint names) to
+  // clients in production; surface the message only in dev for debugging.
+  const isDev = process.env.NODE_ENV !== 'production';
+  res.status(500).json({
+    error: 'Internal server error',
+    ...(isDev && { message: err.message }),
+  });
 });
 
 const server = app.listen(PORT, () => {

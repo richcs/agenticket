@@ -29,4 +29,14 @@ export const auth = betterAuth({
   },
   // CSRF / origin allow-list for the Vite dev client.
   trustedOrigins: [CLIENT_ORIGIN],
+  // Rate limiting is on by default in production (off in dev). The global
+  // window is generous, so clamp the credential sign-in path hard to blunt
+  // password brute-forcing against the known, sign-up-disabled account set.
+  rateLimit: {
+    window: 60,
+    max: 100,
+    customRules: {
+      '/sign-in/email': { window: 60, max: 5 },
+    },
+  },
 });
