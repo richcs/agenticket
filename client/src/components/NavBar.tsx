@@ -25,6 +25,11 @@ export default function NavBar() {
               Health
             </Link>
           )}
+          {session?.user.role === 'admin' && (
+            <Link to="/users" className="text-sm text-gray-600 hover:text-gray-900">
+              Users
+            </Link>
+          )}
         </div>
 
         {session && (
