@@ -38,9 +38,24 @@ npm run dev:client                  # frontend on :5173
 npm run build                       # build both workspaces
 npm run -w server db:migrate        # create / apply migrations against the helpdesk DB
 npm run -w server db:studio         # open Prisma Studio against the helpdesk DB
+npm run test:e2e                    # run Playwright E2E (auto-starts test DB + servers)
+npm run test:e2e:ui                 # Playwright UI mode
+npm run test:e2e:report             # open the last HTML report
 ```
 
 The Vite dev server proxies `/api/*` to the backend, so the frontend calls relative URLs (`fetch('/api/...')`) in both dev and prod.
+
+## Testing (Playwright E2E)
+
+Config at repo-root `playwright.config.ts`; tests live in `e2e/` as `*.spec.ts`. The test stack is fully isolated from dev so tests never touch dev state:
+
+- **Test DB**: `postgres-test` service in `docker-compose.yml` — db `helpdesk_test`, port **5433**, ephemeral `tmpfs` (clean on recreate). Dev DB stays `helpdesk` on 5432.
+- **Test ports**: server **3101**, client **5273** (dev stays 3001 / 5173). `client/vite.config.ts` reads `CLIENT_PORT` / `API_PROXY_TARGET` env vars (defaults unchanged) so the test client targets the test server.
+- **Test env**: `server/.env.test` (committed, non-secret) sets the test DB URL, ports, and `NODE_ENV=test`. The server-under-test runs via `npm run -w server start:e2e` (`tsx --env-file=.env.test`).
+- **globalSetup** (`e2e/global-setup.ts`) brings up `postgres-test` and runs `prisma migrate deploy` against it before the servers start.
+- Rate limiting (Better Auth) is gated `enabled: NODE_ENV === 'production'`, so it's off in dev and test — test sign-in flows aren't throttled.
+
+`npm run test:e2e` handles the whole flow (test DB → migrate → both servers → tests against `http://localhost:5273`). Don't point E2E tests at the dev ports/DB.
 
 ## Conventions
 

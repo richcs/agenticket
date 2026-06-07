@@ -29,10 +29,12 @@ export const auth = betterAuth({
   },
   // CSRF / origin allow-list for the Vite dev client.
   trustedOrigins: [CLIENT_ORIGIN],
-  // Rate limiting is on by default in production (off in dev). The global
-  // window is generous, so clamp the credential sign-in path hard to blunt
-  // password brute-forcing against the known, sign-up-disabled account set.
+  // Rate limiting is enabled only in production (explicitly gated on NODE_ENV so
+  // it stays off in dev and test). The global window is generous, so clamp the
+  // credential sign-in path hard to blunt password brute-forcing against the
+  // known, sign-up-disabled account set.
   rateLimit: {
+    enabled: process.env.NODE_ENV === 'production',
     window: 60,
     max: 100,
     customRules: {

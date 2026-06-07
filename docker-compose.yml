@@ -17,5 +17,26 @@ services:
       timeout: 5s
       retries: 10
 
+  # Isolated database for Playwright / E2E tests. Runs on a separate port (5433)
+  # so it never collides with the dev DB, and uses tmpfs (no named volume) so the
+  # data is ephemeral and starts clean each time the container is recreated.
+  postgres-test:
+    image: postgres:17-alpine
+    container_name: agenticket-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: helpdesk_test
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d helpdesk_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   agenticket_pgdata:
