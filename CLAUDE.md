@@ -9,7 +9,7 @@ For full context see:
 
 ## Stack
 
-- **Frontend**: React 18 + TypeScript + Vite + React Router + Tailwind CSS (Tailwind not wired up yet)
+- **Frontend**: React 18 + TypeScript + Vite + React Router + Tailwind CSS (Tailwind not wired up yet). Data fetching via **TanStack Query** (`@tanstack/react-query`) over **axios** — see Conventions.
 - **Backend**: Node.js + Express 5 + TypeScript (ESM, run via `tsx`)
 - **Database**: PostgreSQL via **Prisma ORM**. Schema lives at `server/prisma/schema.prisma`; the `PrismaClient` singleton is exported from `server/src/db.ts` — never instantiate `new PrismaClient()` elsewhere. Local dev runs Postgres via `docker-compose.yml` at the repo root (database name: `helpdesk`).
 - **Auth**: database sessions (not wired up yet)
@@ -59,6 +59,7 @@ E2E testing uses Playwright against an isolated test stack (separate `helpdesk_t
 - **Shared types** between client and server should eventually live in `/shared` (not created yet) — for now duplicate small DTOs.
 - **AI prompts** live in `/server/src/ai/prompts/` (not created yet) as versioned files so changes are reviewable in diffs.
 - **AI provider isolation**: the `AIProvider` interface lives at `/server/src/ai/provider.ts`; concrete implementations under `/server/src/ai/providers/` (e.g. `claude.ts`); the factory at `/server/src/ai/index.ts` picks one via the `AI_PROVIDER` env var. Importing a vendor SDK outside that directory is a code smell — wrap it behind the interface instead.
+- **Client data fetching**: use **TanStack Query** (`useQuery` / `useMutation`) for all server state, with **axios** as the HTTP client inside the `queryFn` / `mutationFn`. Don't call bare `fetch` or manage loading/error with `useEffect` + `useState`. The `QueryClientProvider` is set up in `client/src/main.tsx`. Pass `withCredentials: true` on axios calls so the session cookie is sent, and map axios errors to a stable shape in the query function. See `client/src/pages/Users.tsx` for the reference pattern.
 
 ## Fetching library docs — use context7
 
