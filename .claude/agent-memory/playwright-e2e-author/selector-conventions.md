@@ -16,6 +16,18 @@ metadata:
 - Login brand: `getByRole('heading', { name: 'Agenticket' })`
 - Loading spinner: `getByText('Loading…')` (unicode ellipsis U+2026, not three dots)
 
+## Users page table selectors
+
+- Column headers: `getByRole('columnheader', { name: 'Name' })` etc. — works because `<th>` inside `<thead>`
+  has implicit ARIA role `columnheader` even without explicit `scope` attribute.
+- Table cells: `getByRole('cell', { name: ADMIN.email })` for email cells
+- Row scoping: `page.getByRole('row', { name: new RegExp(ADMIN.email) })` to find a row by email,
+  then chain `.getByRole('cell', { name: 'admin', exact: true })` for role badge text
+- Role badge: the role text ("admin"/"agent") is inside a `<span>` inside `<td>`, but
+  `getByRole('cell', { name: ADMIN.role, exact: true })` resolves correctly via accessible name
+- Error paragraph: `getByText('Failed to load users: HTTP 500')` — no role on the error `<p>`
+- Subtitle text: `getByText('All accounts with access to Agenticket.')` — exact string match
+
 ## Ambiguity pitfall: user name in NavBar
 
 `getByText(ADMIN.name)` where name is 'Admin' matches BOTH:
@@ -28,15 +40,22 @@ to target only the NavBar header element.
 ## No data-testid hooks needed (so far)
 
 All selectors above are stable ARIA/role-based. No data-testid attributes were needed
-for the auth flows. If future components lack good ARIA roles, recommend adding data-testid.
+for the auth or users flows. If future components lack good ARIA roles, recommend adding data-testid.
 
 ## Ellipsis character
 
 The "Loading…" text uses Unicode ellipsis (…, U+2026), not three ASCII dots (...).
-Match it literally with `getByText('Loading…')`.
+Match it literally with `getByText('Loading…')`. Both RequireAuth and Users.tsx use this same text.
 
 ## role="alert" on form errors
 
 Login.tsx renders field errors and the root server error as `<p role="alert">`.
 This is the correct ARIA pattern. Playwright's `getByRole('alert')` finds all of them;
 use `.filter({ hasText: '...' })` to select the specific one when multiple are expected.
+
+## page.request for API-level assertions
+
+Use `agentPage.request.get('/api/users')` (not `page.request.fetch`) to make XHR calls
+that carry the page context's session cookies. The request goes through the Vite proxy
+(5273 → 3101), so cookies are treated as same-origin. Cast response body:
+`await response.json() as { error: string }`.

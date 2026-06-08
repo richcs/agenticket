@@ -3,6 +3,7 @@ import cors from 'cors';
 import { toNodeHandler } from 'better-auth/node';
 import { prisma } from './db.js';
 import { auth } from './auth.js';
+import { usersRouter } from './routes/users.js';
 
 const PORT = Number(process.env.PORT ?? 3001);
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN ?? 'http://localhost:5173';
@@ -29,6 +30,8 @@ app.get('/api/db-health', async (_req: Request, res: Response, next: NextFunctio
     next(err);
   }
 });
+
+app.use('/api/users', usersRouter);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Not found' });
