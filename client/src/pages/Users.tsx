@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useQuery } from '@tanstack/react-query';
 import NavBar from '../components/NavBar';
 
 type UserRow = {
@@ -18,30 +18,37 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
 });
 
-export default function Users() {
-  const [users, setUsers] = useState<UserRow[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+async function fetchUsers({ signal }: { signal: AbortSignal }): Promise<UserRow[]> {
+  try {
+    const res = await axios.get<{ users: UserRow[] }>('/api/users', {
+      withCredentials: true,
+      signal,
+    });
+    return res.data.users;
+  } catch (e) {
+    // Preserve the "HTTP <status>" shape so the message is stable regardless
+    // of axios's default error text.
+    if (axios.isAxiosError(e) && e.response) {
+      throw new Error(`HTTP ${e.response.status}`);
+    }
+    throw e;
+  }
+}
 
-  useEffect(() => {
-    const controller = new AbortController();
-    axios
-      .get<{ users: UserRow[] }>('/api/users', {
-        withCredentials: true,
-        signal: controller.signal,
-      })
-      .then((res) => setUsers(res.data.users))
-      .catch((e: unknown) => {
-        if (axios.isCancel(e)) return;
-        // Preserve the "HTTP <status>" shape so the message is stable regardless
-        // of axios's default error text.
-        if (axios.isAxiosError(e) && e.response) {
-          setError(`HTTP ${e.response.status}`);
-        } else {
-          setError(e instanceof Error ? e.message : 'Request failed');
-        }
-      });
-    return () => controller.abort();
-  }, []);
+export default function Users() {
+  const {
+    data: users,
+    isPending,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ['users'],
+    queryFn: fetchUsers,
+    // Surface load failures immediately rather than retrying 3× (the default),
+    // which would delay the error UI by several seconds. The query still
+    // refetches on window focus / reconnect.
+    retry: false,
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -52,13 +59,13 @@ export default function Users() {
           All accounts with access to Agenticket.
         </p>
 
-        {error && (
+        {isError && (
           <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
-            Failed to load users: {error}
+            Failed to load users: {error.message}
           </p>
         )}
 
-        {!users && !error && <p className="text-gray-500">Loading…</p>}
+        {isPending && <p className="text-gray-500">Loading…</p>}
 
         {users && users.length === 0 && (
           <p className="text-gray-500">No users found.</p>
