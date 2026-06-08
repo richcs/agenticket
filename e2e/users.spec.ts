@@ -75,9 +75,11 @@ test.describe('admin user on /users', () => {
 
   // ── Loading state ──────────────────────────────────────────────────────────
   //
-  // The "Loading…" paragraph is rendered while users state is null and there
-  // is no error. It's transient, so we hold the /api/users response to observe it.
-  test('shows Loading… while the user list is in flight', async ({ adminPage: page }) => {
+  // While the /api/users request is in flight, Users.tsx renders the table
+  // shell (real column headers) and 5 skeleton rows
+  // (<tr data-testid="user-skeleton-row" aria-hidden="true">).
+  // We hold the response to observe this transient state, then release it.
+  test('shows skeleton rows while the user list is in flight', async ({ adminPage: page }) => {
     let releaseUsers!: () => void;
     const usersBlocked = new Promise<void>((resolve) => { releaseUsers = resolve; });
 
@@ -89,15 +91,16 @@ test.describe('admin user on /users', () => {
 
     await page.goto('/users');
 
-    // While the request is held, the component renders "Loading…".
-    // Users.tsx uses the same Unicode ellipsis (U+2026) as RequireAuth.
-    await expect(page.getByText('Loading…')).toBeVisible();
+    // While the request is held the component renders 5 skeleton rows.
+    const skeletonRows = page.getByTestId('user-skeleton-row');
+    await expect(skeletonRows.first()).toBeVisible();
+    await expect(skeletonRows).toHaveCount(5);
 
-    // Release — real data loads, loading indicator disappears.
+    // Release — real data loads, skeleton rows are replaced by real user rows.
     releaseUsers();
-    // The first column header appearing confirms the table rendered.
-    await expect(page.getByRole('columnheader', { name: 'Name' })).toBeVisible();
-    await expect(page.getByText('Loading…')).not.toBeVisible();
+    // A known seeded user's email cell appearing confirms the real rows rendered.
+    await expect(page.getByRole('cell', { name: ADMIN.email })).toBeVisible();
+    await expect(skeletonRows).toHaveCount(0);
   });
 
   // ── Error state ────────────────────────────────────────────────────────────

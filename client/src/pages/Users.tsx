@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import NavBar from '../components/NavBar';
+import { Skeleton } from '../components/ui/skeleton';
 
 type UserRow = {
   id: string;
@@ -11,6 +12,13 @@ type UserRow = {
   image: string | null;
   createdAt: string;
 };
+
+const COLUMNS = ['Name', 'Email', 'Role', 'Verified', 'Created'] as const;
+
+// Roughly matches the real column content widths so the skeleton doesn't jump
+// when the data arrives.
+const SKELETON_WIDTHS = ['w-32', 'w-48', 'w-12', 'w-8', 'w-20'];
+const SKELETON_ROWS = 5;
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
@@ -65,50 +73,61 @@ export default function Users() {
           </p>
         )}
 
-        {isPending && <p className="text-gray-500">Loading…</p>}
-
-        {users && users.length === 0 && (
-          <p className="text-gray-500">No users found.</p>
-        )}
-
-        {users && users.length > 0 && (
+        {!isError && (
           <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">Name</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">Email</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">Role</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">Verified</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">Created</th>
+                  {COLUMNS.map((col) => (
+                    <th
+                      key={col}
+                      className="px-4 py-3 text-left font-medium text-gray-500"
+                    >
+                      {col}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{user.name}</td>
-                    <td className="px-4 py-3 text-gray-700">{user.email}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={
-                          user.role === 'admin'
-                            ? 'inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700'
-                            : 'inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700'
-                        }
-                      >
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">
-                      {user.emailVerified ? 'Yes' : 'No'}
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">
-                      {dateFormatter.format(new Date(user.createdAt))}
-                    </td>
-                  </tr>
-                ))}
+                {isPending
+                  ? Array.from({ length: SKELETON_ROWS }).map((_, rowIndex) => (
+                      <tr key={rowIndex} data-testid="user-skeleton-row" aria-hidden="true">
+                        {SKELETON_WIDTHS.map((width, colIndex) => (
+                          <td key={colIndex} className="px-4 py-3">
+                            <Skeleton className={`h-4 ${width}`} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  : users.map((user) => (
+                      <tr key={user.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium text-gray-900">{user.name}</td>
+                        <td className="px-4 py-3 text-gray-700">{user.email}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={
+                              user.role === 'admin'
+                                ? 'inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700'
+                                : 'inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700'
+                            }
+                          >
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-700">
+                          {user.emailVerified ? 'Yes' : 'No'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-700">
+                          {dateFormatter.format(new Date(user.createdAt))}
+                        </td>
+                      </tr>
+                    ))}
               </tbody>
             </table>
+
+            {!isPending && users.length === 0 && (
+              <p className="px-4 py-6 text-center text-gray-500">No users found.</p>
+            )}
           </div>
         )}
       </main>
