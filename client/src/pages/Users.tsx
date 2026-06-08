@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import axios from 'axios';
 import NavBar from '../components/NavBar';
 
 type UserRow = {
@@ -22,21 +23,24 @@ export default function Users() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch('/api/users', { credentials: 'include' })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json() as Promise<{ users: UserRow[] }>;
+    const controller = new AbortController();
+    axios
+      .get<{ users: UserRow[] }>('/api/users', {
+        withCredentials: true,
+        signal: controller.signal,
       })
-      .then((data) => {
-        if (!cancelled) setUsers(data.users);
-      })
-      .catch((e: Error) => {
-        if (!cancelled) setError(e.message);
+      .then((res) => setUsers(res.data.users))
+      .catch((e: unknown) => {
+        if (axios.isCancel(e)) return;
+        // Preserve the "HTTP <status>" shape so the message is stable regardless
+        // of axios's default error text.
+        if (axios.isAxiosError(e) && e.response) {
+          setError(`HTTP ${e.response.status}`);
+        } else {
+          setError(e instanceof Error ? e.message : 'Request failed');
+        }
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, []);
 
   return (
