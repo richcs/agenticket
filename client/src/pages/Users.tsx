@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import NavBar from '../components/NavBar';
+import NewUserModal from '../components/NewUserModal';
 import { Skeleton } from '../components/ui/skeleton';
 
 type UserRow = {
@@ -44,6 +46,7 @@ async function fetchUsers({ signal }: { signal: AbortSignal }): Promise<UserRow[
 }
 
 export default function Users() {
+  const [showNewUser, setShowNewUser] = useState(false);
   const {
     data: users,
     isPending,
@@ -62,10 +65,21 @@ export default function Users() {
     <div className="min-h-screen bg-gray-50">
       <NavBar />
       <main className="mx-auto max-w-5xl px-6 py-8">
-        <h1 className="text-2xl font-semibold text-gray-900">Users</h1>
-        <p className="mt-1 mb-6 text-sm text-gray-600">
-          All accounts with access to Agenticket.
-        </p>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Users</h1>
+            <p className="mt-1 text-sm text-gray-600">
+              All accounts with access to Agenticket.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowNewUser(true)}
+            className="shrink-0 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+          >
+            New user
+          </button>
+        </div>
 
         {isError && (
           <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -131,6 +145,8 @@ export default function Users() {
           </div>
         )}
       </main>
+
+      {showNewUser && <NewUserModal onClose={() => setShowNewUser(false)} />}
     </div>
   );
 }

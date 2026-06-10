@@ -1,6 +1,29 @@
 import { Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 import { prisma } from '../db.js';
+import { auth } from '../auth.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
+
+// Password length bounds match Better Auth's defaults; sign-in checks the same
+// hash, so a password the API would reject here would be unusable anyway.
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
+
+// Request-body schema for POST /api/users. Zod trims/normalises as it validates,
+// so the handler works with clean values (name trimmed, email lower-cased).
+const createUserSchema = z.object({
+  name: z.string().trim().min(1, { error: 'Name is required' }),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(1, { error: 'Email is required' })
+    .pipe(z.email({ error: 'Email is invalid' })),
+  password: z
+    .string()
+    .min(MIN_PASSWORD_LENGTH, { error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` })
+    .max(MAX_PASSWORD_LENGTH, { error: `Password must be at most ${MAX_PASSWORD_LENGTH} characters` }),
+});
 
 // Admin-only user management. Mounted at /api/users in index.ts.
 // Both guards run on every route: requireAuth resolves the session,
@@ -28,4 +51,58 @@ usersRouter.get('/', async (_req: Request, res: Response) => {
     orderBy: { createdAt: 'asc' },
   });
   res.json({ users });
+});
+
+// POST /api/users — create a credential user (name + email + password).
+// Public sign-up is disabled (emailAndPassword.disableSignUp), so we create the
+// account the same way the create-user script does: hash via Better Auth's
+// context and write the user + 'credential' account through the internal
+// adapter. New users default to the 'agent' role (schema default).
+usersRouter.post('/', async (req: Request, res: Response) => {
+  const parsed = createUserSchema.safeParse(req.body);
+  if (!parsed.success) {
+    // The client renders a single error string, so surface the first issue.
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid input' });
+    return;
+  }
+  const { name, email, password } = parsed.data;
+
+  // Email is unique; check before hashing so duplicates return a clean 409
+  // rather than surfacing a Prisma constraint error through the 500 handler.
+  const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  if (existing) {
+    res.status(409).json({ error: 'A user with that email already exists' });
+    return;
+  }
+
+  const ctx = await auth.$context;
+  const hash = await ctx.password.hash(password);
+
+  const user = await ctx.internalAdapter.createUser({
+    email,
+    name,
+    emailVerified: true,
+  });
+  await ctx.internalAdapter.createAccount({
+    userId: user.id,
+    providerId: 'credential',
+    accountId: user.id,
+    password: hash,
+  });
+
+  // Re-read through the same projection the list endpoint uses so the client
+  // gets a consistent shape (createUser's return type omits `role`).
+  const created = await prisma.user.findUniqueOrThrow({
+    where: { id: user.id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      emailVerified: true,
+      image: true,
+      createdAt: true,
+    },
+  });
+  res.status(201).json({ user: created });
 });
