@@ -41,11 +41,30 @@ npm run -w server db:studio         # open Prisma Studio against the helpdesk DB
 npm run test:e2e                    # run Playwright E2E (auto-starts test DB + servers)
 npm run test:e2e:ui                 # Playwright UI mode
 npm run test:e2e:report             # open the last HTML report
+npm run -w client test              # run client component/unit tests once (Vitest)
+npm run -w client test:watch        # Vitest watch mode — re-runs on change
+npm run -w client test:ui           # Vitest interactive UI — best for authoring tests
 ```
 
 The Vite dev server proxies `/api/*` to the backend, so the frontend calls relative URLs (`fetch('/api/...')`) in both dev and prod.
 
 ## Testing
+
+Two layers: **Vitest + React Testing Library** for client component/unit tests, and **Playwright** for end-to-end flows. Reach for a component test when verifying a single component's rendering/logic in isolation (mock the network); reach for E2E when verifying a real user journey across the running stack.
+
+### Component / unit tests (client — Vitest + React Testing Library)
+
+Run with the `npm run -w client test*` scripts above. Config lives in `client/vite.config.ts` (the `test` block: `jsdom` env, `globals: true`, setup file). Conventions:
+
+- **Location & naming**: co-locate specs next to the source as `*.test.tsx` / `*.test.ts` (e.g. `client/src/pages/Users.tsx` → `client/src/pages/Users.test.tsx`). The reference example is `client/src/pages/Users.test.tsx`.
+- **Render through the shared helper**: use `renderWithQuery(ui)` from `client/src/test/renderWithQuery.tsx` instead of RTL's bare `render`. It wraps the component in a fresh `QueryClientProvider` (with `retry: false`) plus a `MemoryRouter`, and returns the RTL result augmented with `queryClient`. Any component using TanStack Query or react-router needs it. Don't hand-roll providers per test.
+- **Mock the network, not TanStack Query**: render the real component/query and mock the HTTP boundary. Mock `axios`'s default export (`vi.mock('axios', ...)` exposing `get`/`isAxiosError` as `vi.fn()`) and drive each test with `mockResolvedValue` / `mockRejectedValue`. Don't mock `useQuery` itself.
+- **Mock shared singletons that hit a backend**: e.g. `NavBar` calls `useSession()` from `client/src/lib/auth-client.ts` — `vi.mock('../lib/auth-client', ...)` to return a stable session so the component renders without auth running.
+- **Query by role/text** (`getByRole`, `findByText`, `within(row)`) over test IDs; reserve `data-testid` for elements with no accessible handle (e.g. the skeleton rows: `data-testid="user-skeleton-row"`). Use `findBy*` / `waitFor` for anything that appears after an async query resolves.
+- **Keep assertions locale-agnostic**: when asserting formatted dates/numbers, format the expected value with the same `Intl` config the component uses rather than hard-coding a string.
+- **Setup** (`client/src/test/setup.ts`) registers jest-dom matchers and runs `cleanup()` after each test — no per-file boilerplate needed.
+
+### E2E tests (Playwright)
 
 E2E testing uses Playwright against an isolated test stack (separate `helpdesk_test` DB and ports); `npm run test:e2e` runs the whole flow.
 
