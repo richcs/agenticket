@@ -3,6 +3,9 @@ import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import NavBar from '../components/NavBar';
 import NewUserModal from '../components/NewUserModal';
+import EditUserModal from '../components/EditUserModal';
+import DeleteUserDialog from '../components/DeleteUserDialog';
+import { useSession } from '../lib/auth-client';
 import { Skeleton } from '../components/ui/skeleton';
 
 type UserRow = {
@@ -15,11 +18,11 @@ type UserRow = {
   createdAt: string;
 };
 
-const COLUMNS = ['Name', 'Email', 'Role', 'Verified', 'Created'] as const;
+const COLUMNS = ['Name', 'Email', 'Role', 'Verified', 'Created', 'Actions'] as const;
 
 // Roughly matches the real column content widths so the skeleton doesn't jump
 // when the data arrives.
-const SKELETON_WIDTHS = ['w-32', 'w-48', 'w-12', 'w-8', 'w-20'];
+const SKELETON_WIDTHS = ['w-32', 'w-48', 'w-12', 'w-8', 'w-20', 'w-24'];
 const SKELETON_ROWS = 5;
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -47,6 +50,12 @@ async function fetchUsers({ signal }: { signal: AbortSignal }): Promise<UserRow[
 
 export default function Users() {
   const [showNewUser, setShowNewUser] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+  const [deletingUser, setDeletingUser] = useState<UserRow | null>(null);
+  // The current admin can't delete their own account (the server enforces this
+  // too); disable the button on their own row to make that clear.
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id;
   const {
     data: users,
     isPending,
@@ -134,6 +143,30 @@ export default function Users() {
                         <td className="px-4 py-3 text-gray-700">
                           {dateFormatter.format(new Date(user.createdAt))}
                         </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setEditingUser(user)}
+                              className="rounded-md border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeletingUser(user)}
+                              disabled={user.id === currentUserId}
+                              title={
+                                user.id === currentUserId
+                                  ? "You can't delete your own account"
+                                  : undefined
+                              }
+                              className="rounded-md border border-red-300 px-2.5 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
               </tbody>
@@ -147,6 +180,12 @@ export default function Users() {
       </main>
 
       {showNewUser && <NewUserModal onClose={() => setShowNewUser(false)} />}
+      {editingUser && (
+        <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} />
+      )}
+      {deletingUser && (
+        <DeleteUserDialog user={deletingUser} onClose={() => setDeletingUser(null)} />
+      )}
     </div>
   );
 }

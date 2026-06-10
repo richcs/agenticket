@@ -86,11 +86,54 @@ Worker-scoped fixtures in `e2e/fixtures/auth.ts`:
 - `adminPage` / `agentPage` — test-scoped, creates new context with the saved cookie-jar
 - `globalSetup` clears `playwright/.auth/` at start of each run to prevent stale tokens
 
-## Parallel flakiness note
+## Sign-out tests must NOT use adminPage / agentPage fixtures
 
-On the first `npm run test:e2e` of a fresh run with 7 parallel workers, all workers race
-to capture admin cookie jars simultaneously. This can cause a transient "Target page/context
-closed" failure on one test. On the second run (jars warm) it's fully stable. This is
-inherent to the current worker-scoped fixture strategy — not a test bug. To eliminate it,
-cap workers to 2 or use a shared pre-auth step, but this has not been needed in practice
-(CI uses `workers: 1`).
+The admin and agent sign-out tests use `page` (plain unauthenticated fixture) + manual
+UI login instead of `adminPage` / `agentPage`. Reason: signing out invalidates the DB
+session server-side. Using the shared cookie-jar fixture poisons the worker's
+`adminStorageState` for all subsequent tests on that worker — they land on /login
+instead of the expected page.
+
+Fix applied in auth.spec.ts: both sign-out tests log in fresh via the UI and sign out,
+leaving the shared session untouched.
+
+## Parallel flakiness note — RESOLVED
+
+The original 7-worker default caused the session-poisoning race AND bcrypt timeouts
+on early runs. Fixed by:
+1. Capping local workers to 4 (playwright.config.ts: `workers: process.env.CI ? 1 : 4`)
+2. Fixing sign-out tests to use fresh sessions (not the shared worker cookie jar)
+CI still uses `workers: 1` (sequential, no race).
+
+## Spec file: e2e/user-management.spec.ts
+
+Admin-only user CRUD management tests. Uses same fixtures from `e2e/fixtures/auth.ts`.
+
+**Coverage (all passing against real backend)**
+
+**Create**
+- Admin opens "New user" dialog, fills Name/Email/Password, submits → modal closes,
+  new row appears with correct name/email and role "agent" (server default)
+- Duplicate email → 409 from server, "Failed to create user: A user with that email
+  already exists" displayed, modal stays open
+
+**Edit**
+- Admin clicks Edit on a row, dialog pre-fills with current name/email
+- Changes name, saves → dialog closes, row shows updated name
+- Edit to duplicate email → 409 from server, error displayed, dialog stays open
+
+**Delete**
+- Admin clicks Delete on a row, alertdialog names the user
+- Confirms → dialog closes, row disappears from table
+
+**Self-delete protection**
+- Delete button is `disabled` on the signed-in admin's own row (UI check)
+- `DELETE /api/users/:id` with the admin's own id → 400 "You cannot delete your own account"
+  (API-level check via page.request.delete)
+
+**Test isolation strategy**
+- Each test that creates/edits/deletes uses `uniqueEmail(label)` (Date.now + random)
+- Tests that need a target user (edit, delete) create one via `createUserViaUI` helper
+  before the actual assertion — fully hermetic, no dependency on seeded AGENT user
+- 15s timeouts on mutation-dependent assertions (modal close, row appear/disappear)
+  to accommodate bcrypt + DB round-trips under parallel load

@@ -1,14 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import axios from 'axios';
 import Users from './Users';
 import { renderWithQuery } from '../test/renderWithQuery';
 
-// Users renders <NavBar>, which calls useSession() and would otherwise hit the
-// real better-auth client. Stub it with a stable admin session so the page
-// renders without a backend.
+// Users renders <NavBar> and the row actions, both of which call useSession()
+// and would otherwise hit the real better-auth client. Stub it with a stable
+// admin session (id 'admin-1') so the page renders without a backend.
 vi.mock('../lib/auth-client', () => ({
-  useSession: () => ({ data: { user: { name: 'Admin User', role: 'admin' } } }),
+  useSession: () => ({ data: { user: { id: 'admin-1', name: 'Admin User', role: 'admin' } } }),
   signOut: vi.fn(),
   signIn: vi.fn(),
 }));
@@ -157,5 +158,64 @@ describe('Users page', () => {
     renderUsers();
 
     expect(await screen.findByText('Failed to load users: Network Error')).toBeInTheDocument();
+  });
+
+  it('renders Edit and Delete actions on each row', async () => {
+    mockedGet.mockResolvedValue({ data: { users: [makeUser()] } });
+
+    renderUsers();
+
+    const row = (await screen.findByText('Ada Lovelace')).closest('tr')!;
+    expect(within(row).getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    expect(within(row).getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+  });
+
+  it('opens the edit dialog pre-filled when Edit is clicked', async () => {
+    const u = userEvent.setup();
+    mockedGet.mockResolvedValue({ data: { users: [makeUser()] } });
+
+    renderUsers();
+
+    const row = (await screen.findByText('Ada Lovelace')).closest('tr')!;
+    await u.click(within(row).getByRole('button', { name: 'Edit' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Edit user' });
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('Ada Lovelace');
+    expect(within(dialog).getByLabelText('Email')).toHaveValue('ada@example.com');
+  });
+
+  it('opens the delete confirmation when Delete is clicked', async () => {
+    const u = userEvent.setup();
+    mockedGet.mockResolvedValue({ data: { users: [makeUser()] } });
+
+    renderUsers();
+
+    const row = (await screen.findByText('Ada Lovelace')).closest('tr')!;
+    await u.click(within(row).getByRole('button', { name: 'Delete' }));
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Delete user' });
+    expect(dialog).toHaveTextContent('Ada Lovelace');
+  });
+
+  it("disables Delete on the signed-in admin's own row", async () => {
+    // The mocked session is id 'admin-1'; that row can't delete itself.
+    mockedGet.mockResolvedValue({
+      data: {
+        users: [
+          // Distinct from the NavBar's session name ('Admin User') so the row
+          // lookup below doesn't match the nav bar.
+          makeUser({ id: 'admin-1', name: 'Self Admin', email: 'admin@example.com' }),
+          makeUser({ id: 'u2', name: 'Grace Hopper', email: 'grace@example.com' }),
+        ],
+      },
+    });
+
+    renderUsers();
+
+    const ownRow = (await screen.findByText('Self Admin')).closest('tr')!;
+    expect(within(ownRow).getByRole('button', { name: 'Delete' })).toBeDisabled();
+
+    const otherRow = screen.getByText('Grace Hopper').closest('tr')!;
+    expect(within(otherRow).getByRole('button', { name: 'Delete' })).toBeEnabled();
   });
 });

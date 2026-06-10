@@ -16,7 +16,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Cap local workers at 4 to reduce auth-fixture startup race (all workers
+  // race to capture cookie jars on the first run; too many concurrent bcrypt
+  // calls overwhelm the test server). CI uses 1 worker (sequential, no race).
+  workers: process.env.CI ? 1 : 4,
   reporter: 'html',
 
   globalSetup: './e2e/global-setup.ts',

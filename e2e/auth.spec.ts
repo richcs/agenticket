@@ -183,8 +183,20 @@ test.describe('admin user', () => {
     await expect(page.getByRole('heading', { name: `Welcome, ${ADMIN.name}` })).toBeVisible();
   });
 
-  test('sign out redirects to /login and clears the session', async ({ adminPage: page }) => {
-    await page.goto('/');
+  // Sign-out must use `page` (the plain unauthenticated fixture) + a manual
+  // login step, NOT `adminPage`. The adminPage fixture's session is
+  // worker-scoped (shared across all tests on a worker); signing out
+  // invalidates that session server-side and poisons the shared cookie jar
+  // for any subsequent test on the same worker that uses adminPage.
+  test('sign out redirects to /login and clears the session', async ({ page }) => {
+    // Log in fresh (not via the shared cookie-jar fixture).
+    await page.goto('/login');
+    await page.getByLabel('Email').fill(ADMIN.email);
+    await page.getByLabel('Password').fill(ADMIN.password);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page).toHaveURL('/');
+
+    // Sign out.
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL('/login');
 
@@ -225,8 +237,16 @@ test.describe('agent user (non-admin)', () => {
     await expect(page).not.toHaveURL('/login');
   });
 
-  test('sign out redirects to /login', async ({ agentPage: page }) => {
-    await page.goto('/');
+  // Sign-out uses `page` + manual login for the same reason as the admin
+  // sign-out test above: using `agentPage` would invalidate the shared
+  // cookie jar for this worker's remaining agentPage tests.
+  test('sign out redirects to /login', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByLabel('Email').fill(AGENT.email);
+    await page.getByLabel('Password').fill(AGENT.password);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page).toHaveURL('/');
+
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL('/login');
   });

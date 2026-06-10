@@ -37,10 +37,25 @@ metadata:
 **Fix**: scope to the banner role — `getByRole('banner').getByText(ADMIN.name)` — 
 to target only the NavBar header element.
 
+## Modal and alertdialog selectors
+
+- NewUserModal: `getByRole('dialog', { name: 'Create user' })` — scopes to the create dialog
+  - Labels: `getByLabel('Name')` (id=new-user-name), `getByLabel('Email')` (id=new-user-email),
+    `getByLabel('Password')` (id=new-user-password)
+  - Submit: `getByRole('button', { name: 'Create user' })`
+  - Error: `getByText('Failed to create user: <message>')` (plain `<p>` inside the dialog)
+- EditUserModal: `getByRole('dialog', { name: 'Edit user' })`
+  - Labels: `getByLabel('Name')` (id=edit-user-name), `getByLabel('Email')` (id=edit-user-email)
+  - Submit: `getByRole('button', { name: 'Save changes' })`
+  - Error: `getByText('Failed to update user: <message>')`
+- DeleteUserDialog: `getByRole('alertdialog', { name: 'Delete user' })`
+  - User name is in the body text (span inside p) — use `getByText(userName)` scoped to dialog
+  - Confirm: `getByRole('button', { name: 'Delete' })`
+
 ## No data-testid hooks needed (so far)
 
 All selectors above are stable ARIA/role-based. No data-testid attributes were needed
-for the auth or users flows. If future components lack good ARIA roles, recommend adding data-testid.
+for the auth, users, or user-management flows.
 
 ## Ellipsis character
 
